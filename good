@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🍱 오늘 급식 맞춤 배식 & 알레르기 확인</title>
+    <style>
+        body {
+            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            margin: 0;
+            padding: 15px;
+            background-color: #FFF9C4;
+            background-image: radial-gradient(#FBC02D 0.75px, transparent 0.75px);
+            background-size: 15px 15px;
+            color: #333;
+        }
+
+        .bg-emojis {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            pointer-events: none;
+            opacity: 0.12;
+            font-size: 2rem;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-around;
+            align-content: space-around;
+            z-index: -1;
+        }
+
+        .container {
+            max-width: 480px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 20px;
+            border-radius: 20px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+        }
+
+        h1, h2 {
+            text-align: center;
+            color: #D84315;
+            margin-top: 0;
+        }
+
+        h1 { font-size: 1.5rem; }
+        h2 { font-size: 1.2rem; border-bottom: 2px dashed #FFB74D; padding-bottom: 8px; margin-top: 10px; }
+
+        /* 단계 진행 바 (Progress Bar) */
+        .progress-container {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            position: relative;
+        }
+
+        .step-bubble {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: #FFE082;
+            color: #E65100;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 0.9rem;
+            z-index: 1;
+        }
+
+        .step-bubble.active {
+            background: #FF9800;
+            color: white;
+        }
+
+        /* 단계별 화면 제어 */
+        .step-card {
+            display: none; /* 기본 숨김 */
+            background: #FFFDE7;
+            border: 1px solid #FFE082;
+            border-radius: 12px;
+            padding: 18px;
+            margin-bottom: 15px;
+            animation: fadeIn 0.3s ease-in-out;
+        }
+
+        .step-card.active {
+            display: block; /* 현재 단계만 표시 */
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        label {
+            font-weight: bold;
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        input[type="date"] {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #FFCA28;
+            border-radius: 8px;
+            box-sizing: border-box;
+            font-size: 1rem;
+            margin-bottom: 10px;
+        }
+
+        .allergy-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            margin-bottom: 8px;
+            border-radius: 8px;
+            background-color: #FFFFFF;
+            border: 1px solid #FFF59D;
+        }
+
+        .allergy-item.has-allergy {
+            background-color: #FFEBEE;
+            border: 1.5px solid #FFCDD2;
+        }
+
+        .allergy-warning {
+            color: #D32F2F;
+            font-weight: bold;
+            font-size: 0.85rem;
+            display: block;
+            margin-top: 2px;
+        }
+
+        .amount-group {
+            margin-bottom: 15px;
+        }
+
+        .amount-options {
+            display: flex;
+            gap: 5px;
+        }
+
+        .amount-options label {
+            flex: 1;
+            text-align: center;
+            background: #FFF;
+            border: 1px solid #FFCA28;
+            padding: 10px 0;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: normal;
+        }
+
+        .amount-options input[type="radio"] {
+            display: none;
+        }
+
+        .amount-options label:has(input[type="radio"]:checked) {
+            background: #FFE082;
+            border-color: #FFB300;
+            font-weight: bold;
+            color: #E65100;
+        }
+
+        .fixed-snack {
+            background: #E8F5E9;
+            padding: 12px;
+            border-radius: 8px;
+            text-align: center;
+            font-weight: bold;
+            color: #2E7D32;
+            border: 1px solid #C8E6C9;
+        }
+
+        .snack-highlight {
+            color: #1B5E20;
+            font-size: 0.9rem;
+            margin-top: 4px;
+            font-weight: normal;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        button {
+            flex: 1;
+            background: #FF9800;
+            color: white;
+            border: none;
+            padding: 14px;
+            font-size: 1rem;
+            font-weight: bold;
+            border-radius: 10px;
+            cursor: pointer;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        button.btn-prev {
+            background: #B0BEC5;
+        }
+
+        button:active {
+            opacity: 0.8;
+        }
+
+        .result-board {
+            background: #E3F2FD;
+            border: 1px solid #90CAF9;
+            border-radius: 12px;
+            padding: 15px;
+        }
+
+        .stat-item {
+            margin-bottom: 10px;
+            padding: 8px;
+            background: white;
+            border-radius: 6px;
+        }
+
+        .badge {
+            background: #FF7043;
+            color: white;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="bg-emojis">
+        <span>🍚</span><span>🍲</span><span>🥦</span><span>🍎</span><span>🍱</span>
+        <span>🍗</span><span>🥖</span><span>🍌</span><span>🍳</span><span>🍇</span>
+        <span>🍚</span><span>🍲</span><span>🥦</span><span>🍎</span><span>🍱</span>
+    </div>
+
+    <div class="container">
+        <h1>🍱 오늘 급식 맞춤 신청</h1>
+
+        <!-- 단계 진행 바 -->
+        <div class="progress-container">
+            <div class="step-bubble active" id="bubble-1">1</div>
+            <div class="step-bubble" id="bubble-2">2</div>
+            <div class="step-bubble" id="bubble-3">3</div>
+        </div>
+
+        <!-- STEP 1: 날짜 및 급식 확인 & 알레르기 체크 -->
+        <div class="step-card active" id="step-1">
+            <h2>📅 1단계: 날짜 및 급식 확인</h2>
+            <label for="meal-date">급식 날짜 선택</label>
+            <input type="date" id="meal-date" onchange="loadMealData()">
+
+            <div id="menu-list" style="margin-top: 15px;">
+                <!-- 동적 메뉴 영역 -->
+            </div>
+
+            <div class="btn-group">
+                <button onclick="nextStep(2)">다음으로 넘어가기 ➡️</button>
+            </div>
+        </div>
+
+        <!-- STEP 2: 식사량 지정 및 간식 수량 확인 -->
+        <div class="step-card" id="step-2">
+            <h2>📊 2단계: 식사량 및 간식 설정</h2>
+            
+            <div class="amount-group">
+                <label>🍚 밥 양 선택</label>
+                <div class="amount-options">
+                    <label><input type="radio" name="rice" value="적게"><span>적게</span></label>
+                    <label><input type="radio" name="rice" value="보통" checked><span>보통</span></label>
+                    <label><input type="radio" name="rice" value="많이"><span>많이</span></label>
+                </div>
+            </div>
+
+            <div class="amount-group">
+                <label>🥘 메인 반찬 양 선택</label>
+                <div class="amount-options">
+                    <label><input type="radio" name="side" value="적게"><span>적게</span></label>
+                    <label><input type="radio" name="side" value="보통" checked><span>보통</span></label>
+                    <label><input type="radio" name="side" value="많이"><span>많이</span></label>
+                </div>
+            </div>
+
+            <div class="amount-group">
+                <label>🧃 오늘의 간식 배식 기준 (자동)</label>
+                <div class="fixed-snack" id="snack-info">
+                    🔒 간식 정보 확인 중...
+                </div>
+            </div>
+
+            <div class="btn-group">
+                <button class="btn-prev" onclick="prevStep(1)">⬅️ 이전</button>
+                <button onclick="submitSurvey()">제출 및 결과 보기 🚀</button>
+            </div>
+        </div>
+
+        <!-- STEP 3: 실시간 현황 및 결과 -->
+        <div class="step-card" id="step-3">
+            <h2>📈 3단계: 실시간 급식 선호 현황</h2>
+            <div class="result-board" id="stats-container">
+                <p style="text-align: center; color: #666;">데이터 분석 중...</p>
+            </div>
+
+            <div class="btn-group">
+                <button class="btn-prev" onclick="prevStep(2)">⬅️ 다시 입력하기</button>
+                <button onclick="nextStep(1)">처음으로 🔄</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const rices = [
+            { name: "발아현미밥", allergy: "" },
+            { name: "클로렐라쌀밥", allergy: "" },
+            { name: "김치볶음밥", allergy: "돼지고기, 대두" },
+            { name: "흑미밥", allergy: "" },
+            { name: "카레라이스", allergy: "돼지고기, 대두, 밀" }
+        ];
+
+        const soups = [
+            { name: "소고기미역국", allergy: "대두, 소고기" },
+            { name: "순두부찌개", allergy: "대두, 조개류" },
+            { name: "콩나물국", allergy: "대두" },
+            { name: "감자수제비국", allergy: "밀, 대두" },
+            { name: "팽이버섯장국", allergy: "대두" }
+        ];
+
+        const mainSides = [
+            { name: "제육볶음", allergy: "돼지고기, 대두, 밀" },
+            { name: "안동찜닭", allergy: "닭고기, 대두, 밀" },
+            { name: "수제돈까스", allergy: "돼지고기, 밀, 계란, 우유" },
+            { name: "오징어볶음", allergy: "오징어, 대두" },
+            { name: "치킨너겟", allergy: "닭고기, 밀, 계란" }
+        ];
+
+        const subSides = [
+            { name: "계란말이", allergy: "계란" },
+            { name: "시금치나물무침", allergy: "" },
+            { name: "양배추샐러드", allergy: "계란" },
+            { name: "비엔나소세지볶음", allergy: "돼지고기, 토마토" },
+            { name: "깍두기", allergy: "" }
+        ];
+
+        const snacks = [
+            { name: "포도 (캠벨)", allergy: "" },
+            { name: "조각 사과", allergy: "" },
+            { name: "블루베리", allergy: "" },
+            { name: "배", allergy: "" },
+            { name: "샤인머스캣", allergy: "" },
+            { name: "유기농 요구르트", allergy: "우유" }
+        ];
+
+        const smallFruits = ["포도", "방울토마토", "블루베리", "체리", "딸기", "거봉", "샤인머스캣"];
+        let currentSnackInfo = { name: "간식", amountText: "1개 고정", count: 1 };
+
+        document.addEventListener("DOMContentLoaded", () => {
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('meal-date').value = today;
+            loadMealData();
+        });
+
+        function showStep(stepNumber) {
+            document.querySelectorAll('.step-card').forEach(card => card.classList.remove('active'));
+            document.querySelectorAll('.step-bubble').forEach(b => b.classList.remove('active'));
+
+            document.getElementById(`step-${stepNumber}`).classList.add('active');
+            for(let i=1; i<=stepNumber; i++) {
+                document.getElementById(`bubble-${i}`).classList.add('active');
+            }
+        }
+
+        function nextStep(stepNumber) {
+            showStep(stepNumber);
+        }
+
+        function prevStep(stepNumber) {
+            showStep(stepNumber);
+        }
+
+        function getHashFromDate(dateStr) {
+            let hash = 0;
+            for (let i = 0; i < dateStr.length; i++) {
+                hash = (hash << 5) - hash + dateStr.charCodeAt(i);
+                hash |= 0;
+            }
+            return Math.abs(hash);
+        }
+
+        function loadMealData() {
+            const selectedDate = document.getElementById('meal-date').value;
+            const menuListDiv = document.getElementById('menu-list');
+            if (!selectedDate) return;
+
+            const hash = getHashFromDate(selectedDate);
+            
+            const todayMenu = [
+                { type: "밥", name: rices[hash % rices.length].name, allergy: rices[hash % rices.length].allergy },
+                { type: "국", name: soups[(hash + 1) % soups.length].name, allergy: soups[(hash + 1) % soups.length].allergy },
+                { type: "반찬", name: mainSides[(hash + 2) % mainSides.length].name, allergy: mainSides[(hash + 2) % mainSides.length].allergy },
+                { type: "반찬", name: subSides[(hash + 3) % subSides.length].name, allergy: subSides[(hash + 3) % subSides.length].allergy },
+                { type: "간식", name: snacks[(hash + 4) % snacks.length].name, allergy: snacks[(hash + 4) % snacks.length].allergy }
+            ];
+
+            menuListDiv.innerHTML = "";
+            let snackItem = null;
+
+            todayMenu.forEach((item, index) => {
+                if (item.type === "간식") snackItem = item;
+
+                const hasAllergy = item.allergy.trim().length > 0;
+                const allergyClass = hasAllergy ? 'has-allergy' : '';
+                const allergyText = hasAllergy ? `<span class="allergy-warning">⚠️ 알레르기: ${item.allergy}</span>` : '';
+
+                menuListDiv.innerHTML += `
+                    <div class="allergy-item ${allergyClass}">
+                        <div>
+                            <strong>[${item.type}]</strong> ${item.name}
+                            ${allergyText}
+                        </div>
+                        <label style="margin:0; font-weight:normal; font-size:0.85rem; cursor:pointer;">
+                            <input type="checkbox" class="no-eat-check" value="${item.name}"> 못먹음 ❌
+                        </label>
+                    </div>
+                `;
+            });
+
+            const snackInfoDiv = document.getElementById('snack-info');
+            if (snackItem) {
+                const name = snackItem.name;
+                const isSmallFruit = smallFruits.some(fruit => name.includes(fruit));
+
+                if (isSmallFruit) {
+                    currentSnackInfo = { name: name, amountText: "3개 고정", count: 3 };
+                    snackInfoDiv.innerHTML = `🍇 <strong>${name}</strong>: 1인당 <strong>3개</strong> 고정!
+                        <div class="snack-highlight">(작은 과일 항목 적용)</div>`;
+                } else {
+                    currentSnackInfo = { name: name, amountText: "1개 고정", count: 1 };
+                    snackInfoDiv.innerHTML = `🔒 <strong>${name}</strong>: 1인당 <strong>1개</strong> 고정!
+                        <div class="snack-highlight">(일반 과일 및 기타 간식 적용)</div>`;
+                }
+            }
+        }
+
+        function submitSurvey() {
+            const date = document.getElementById('meal-date').value;
+            const riceAmount = document.querySelector('input[name="rice"]:checked').value;
+            const sideAmount = document.querySelector('input[name="side"]:checked').value;
+            
+            const noEatChecks = document.querySelectorAll('.no-eat-check:checked');
+            const noEatList = Array.from(noEatChecks).map(cb => cb.value);
+
+            const responseData = {
+                date: date,
+                rice: riceAmount,
+                side: sideAmount,
+                snackName: currentSnackInfo.name,
+                snackAmount: currentSnackInfo.amountText,
+                noEat: noEatList
+            };
+
+            let allData = JSON.parse(localStorage.getItem('mealSurveys')) || [];
+            allData.push(responseData);
+            localStorage.setItem('mealSurveys', JSON.stringify(allData));
+
+            updateStats();
+            showStep(3); // 결과 3단계 화면으로 이동
+        }
+
+        function updateStats() {
+            const allData = JSON.parse(localStorage.getItem('mealSurveys')) || [];
+            const statsContainer = document.getElementById('stats-container');
+
+            if (allData.length === 0) {
+                statsContainer.innerHTML = "<p style='text-align:center;'>데이터가 없습니다.</p>";
+                return;
+            }
+
+            let riceCounts = { "적게": 0, "보통": 0, "많이": 0 };
+            let sideCounts = { "적게": 0, "보통": 0, "많이": 0 };
+            let noEatCounts = {};
+            let latestSnackText = "1인당 1개 고정";
+
+            allData.forEach(entry => {
+                if(entry.rice) riceCounts[entry.rice]++;
+                if(entry.side) sideCounts[entry.side]++;
+                if(entry.snackName && entry.snackAmount) {
+                    latestSnackText = `${entry.snackName} (${entry.snackAmount})`;
+                }
+
+                if(entry.noEat) {
+                    entry.noEat.forEach(food => {
+                        noEatCounts[food] = (noEatCounts[food] || 0) + 1;
+                    });
+                }
+            });
+
+            const topRice = Object.keys(riceCounts).reduce((a, b) => riceCounts[a] > riceCounts[b] ? a : b);
+            const topSide = Object.keys(sideCounts).reduce((a, b) => sideCounts[a] > sideCounts[b] ? a : b);
+
+            let mostAvoidedFood = "없음";
+            let maxAvoidCount = 0;
+            for (const [food, count] of Object.entries(noEatCounts)) {
+                if (count > maxAvoidCount) {
+                    maxAvoidCount = count;
+                    mostAvoidedFood = `${food} (${count}명 못 먹음)`;
+                }
+            }
+
+            statsContainer.innerHTML = `
+                <div class="stat-item">
+                    👥 <strong>총 참여 학생 수:</strong> ${allData.length}명
+                </div>
+                <div class="stat-item">
+                    🍚 <strong>선호 밥 양:</strong> <span class="badge">${topRice}</span> 
+                    (보통 ${riceCounts['보통']}, 많이 ${riceCounts['많이']}, 적게 ${riceCounts['적게']})
+                </div>
+                <div class="stat-item">
+                    🥘 <strong>선호 반찬 양:</strong> <span class="badge">${topSide}</span>
+                    (보통 ${sideCounts['보통']}, 많이 ${sideCounts['많이']}, 적게 ${sideCounts['적게']})
+                </div>
+                <div class="stat-item">
+                    🧃 <strong>오늘의 간식 기준:</strong> ${latestSnackText}
+                </div>
+                <div class="stat-item">
+                    ⚠️ <strong>가장 많이 못 먹는 메뉴:</strong> <br>
+                    <span style="color: #D32F2F; font-weight:bold;">${mostAvoidedFood}</span>
+                </div>
+            `;
+        }
+    </script>
+</body>
+</html>
